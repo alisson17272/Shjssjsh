@@ -1,445 +1,98 @@
 -- ============================================
--- SCRIPT UNIFICADO: MENU + ESP + AIMBOT (AUTOMÁTICO - VERSÃO ESTÁVEL)
--- (Apenas para testes no seu próprio jogo)
+-- HACK LAB COMPACT v2.0 - <400 LINHAS
 -- ============================================
+local Players=game:GetService("Players");local LP=Players.LocalPlayer;local RS=game:GetService("RunService");local UIS=game:GetService("UserInputService");local Camera=workspace.CurrentCamera;local plr=LP;local char=nil;local root=nil
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+-- CONFIGS
+local DIST=35;local COR=Color3.fromRGB(255,0,0);local ESP_ON=false;local AIM_ON=false;local SPD_ON=false;local FLY_ON=false;local NOCLIP_ON=false;local JUMP_ON=false
+local flying=false;local flySpeed=50;local noclipEnabled=false;local jumpMultiplier=1
+local highlights={};local alvoAtual=nil
 
--- ===== CONFIGURAÇÕES =====
-local CONFIG = {
-    DistanciaAimbot = 35,
-    OffsetAimbotY = 0,
-    CorESP = Color3.fromRGB(255, 0, 0)
-}
+-- FUNÇÕES AUXILIARES
+local function getChar() char=plr.Character;if char then root=char:FindFirstChild("HumanoidRootPart") end;return char end
+local function getHumanoid() local c=getChar();return c and c:FindFirstChild("Humanoid") end
 
--- ===== ESTADOS DO MENU =====
-local ESP_Ativado = false
-local Aimbot_Ativado = false
+-- ESP
+local function criarESP(personagem) if not personagem then return nil end;local h=Instance.new("Highlight");h.Name="ESP";h.Adornee=personagem;h.OutlineColor=COR;h.FillColor=COR;h.FillTransparency=1;h.OutlineTransparency=0;h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop;h.Parent=personagem;return h end
+local function removerESP() for _,h in pairs(highlights)do if h and h.Parent then h:Destroy()end end;highlights={} end
+local function atualizarESP() if ESP_ON then for _,j in pairs(Players:GetPlayers())do if j~=plr then local c=j.Character;if c and not highlights[j]then local h=criarESP(c);if h then highlights[j]=h end end end end else removerESP() end end
 
--- ===== GERENCIADOR DE HIGHLIGHTS (ESP) =====
-local highlights = {}
+-- AIMBOT
+local function getAlvo() local c=getChar()if not c or not root then return nil end;local origem=root.Position;local alvo=nil;local menorDist=DIST;for _,j in pairs(Players:GetPlayers())do if j~=plr then local c2=j.Character;if c2 then local r=c2:FindFirstChild("HumanoidRootPart");local h=c2:FindFirstChild("Humanoid");if r and h and h.Health>0 then local dist=(r.Position-origem).Magnitude;if dist<menorDist then menorDist=dist;alvo=j end end end end end;return alvo end
 
-local function criarHighlight(personagem)
-    if not personagem then return nil end
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "MeuESP_Menu"
-    highlight.Adornee = personagem
-    highlight.OutlineColor = CONFIG.CorESP
-    highlight.FillColor = CONFIG.CorESP
-    highlight.FillTransparency = 1
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = personagem
-    return highlight
-end
+-- SPEED
+local function toggleSpeed() SPD_ON=not SPD_ON;local hum=getHumanoid();if hum then hum.WalkSpeed=SPD_ON and 32 or 16 end end
 
-local function removerESPDeTodos()
-    for jogador, highlight in pairs(highlights) do
-        if highlight and highlight.Parent then
-            highlight:Destroy()
-        end
+-- FLY
+local function toggleFly() FLY_ON=not FLY_ON;flying=false;local hum=getHumanoid();if hum then hum.PlatformStand=FLY_ON end end
+UIS.InputBegan:Connect(function(i,g)if g then return end;if FLY_ON and i.KeyCode==Enum.KeyCode.Space then flying=true end end)
+UIS.InputEnded:Connect(function(i)if FLY_ON and i.KeyCode==Enum.KeyCode.Space then flying=false end end)
+
+-- NOCLIP
+local function toggleNoClip() NOCLIP_ON=not NOCLIP_ON;noclipEnabled=NOCLIP_ON end
+
+-- JUMP
+local function toggleJump() JUMP_ON=not JUMP_ON;local hum=getHumanoid();if hum then hum.JumpPower=JUMP_ON and 200 or 50 end end
+
+-- LOOP PRINCIPAL
+RS.RenderStepped:Connect(function()
+    local c=getChar()
+    -- Fly
+    if FLY_ON and c and c:FindFirstChild("HumanoidRootPart") then
+        local hrp=c.HumanoidRootPart;local vel=hrp.Velocity;local moveDir=Vector3.new(0,0,0);local f=UIS:IsKeyDown(Enum.KeyCode.W) and 1 or 0;local b=UIS:IsKeyDown(Enum.KeyCode.S) and -1 or 0;local a=UIS:IsKeyDown(Enum.KeyCode.A) and -1 or 0;local d=UIS:IsKeyDown(Enum.KeyCode.D) and 1 or 0;local up=UIS:IsKeyDown(Enum.KeyCode.Space) and 1 or 0;local down=UIS:IsKeyDown(Enum.KeyCode.LeftShift) and -1 or 0;moveDir=Vector3.new(a+d,up+down,f+b);if moveDir.Magnitude>0 then moveDir=moveDir.Unit*flySpeed else moveDir=Vector3.new(0,0,0) end;hrp.Velocity=Vector3.new(moveDir.X,vel.Y+moveDir.Y,moveDir.Z)
     end
-    highlights = {}
-end
-
-local function atualizarESP()
-    if ESP_Ativado then
-        for _, jogador in ipairs(Players:GetPlayers()) do
-            if jogador ~= LocalPlayer then
-                local char = jogador.Character
-                if char and not highlights[jogador] then
-                    local novoHighlight = criarHighlight(char)
-                    if novoHighlight then
-                        highlights[jogador] = novoHighlight
-                    end
-                end
-            end
-        end
-    else
-        removerESPDeTodos()
-    end
-end
-
-local function conectarRespawn(jogador)
-    jogador.CharacterAdded:Connect(function(char)
-        if ESP_Ativado and jogador ~= LocalPlayer then
-            if highlights[jogador] then
-                highlights[jogador]:Destroy()
-                highlights[jogador] = nil
-            end
-            wait(0.1)
-            local novoHighlight = criarHighlight(char)
-            if novoHighlight then
-                highlights[jogador] = novoHighlight
-            end
-        end
-    end)
-end
-
-for _, jogador in ipairs(Players:GetPlayers()) do
-    if jogador ~= LocalPlayer then
-        conectarRespawn(jogador)
-    end
-end
-Players.PlayerAdded:Connect(conectarRespawn)
-
-Players.PlayerRemoving:Connect(function(jogador)
-    if highlights[jogador] then
-        highlights[jogador]:Destroy()
-        highlights[jogador] = nil
-    end
+    -- NoClip
+    if NOCLIP_ON and c then for _,p in pairs(c:GetDescendants())do if p:IsA("BasePart")then p.CanCollide=false end end end
+    -- ESP
+    if ESP_ON then for _,j in pairs(Players:GetPlayers())do if j~=plr then local c2=j.Character;if c2 then if not highlights[j]then local h=criarESP(c2);if h then highlights[j]=h end elseif highlights[j].Adornee~=c2 then highlights[j]:Destroy();highlights[j]=nil;local h=criarESP(c2);if h then highlights[j]=h end end else if highlights[j]then highlights[j]:Destroy();highlights[j]=nil end end end end end
+    -- Aimbot
+    if AIM_ON then local alvo=getAlvo();if alvo then local c2=alvo.Character;if c2 then local r=c2:FindFirstChild("HumanoidRootPart");if r then Camera.CFrame=CFrame.new(Camera.CFrame.Position,r.Position)end end end end
 end)
 
--- ===== LÓGICA DO AIMBOT =====
-local alvoAtual = nil
-
-local function getJogadorMaisProximo()
-    local personagem = LocalPlayer.Character
-    if not personagem then return nil end
-    local root = personagem:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-
-    local origem = root.Position
-    local maisProximo = nil
-    local menorDist = CONFIG.DistanciaAimbot
-
-    for _, jogador in ipairs(Players:GetPlayers()) do
-        if jogador ~= LocalPlayer then
-            local char = jogador.Character
-            if char then
-                local alvoRoot = char:FindFirstChild("HumanoidRootPart")
-                local humanoide = char:FindFirstChild("Humanoid")
-                if alvoRoot and humanoide and humanoide.Health > 0 then
-                    local dist = (alvoRoot.Position - origem).Magnitude
-                    if dist < menorDist then
-                        menorDist = dist
-                        maisProximo = jogador
-                    end
-                end
-            end
-        end
-    end
-    return maisProximo
-end
-
--- ===== CRIAÇÃO DO MENU (UI) =====
+-- MENU
 local function criarMenu()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "MenuHack_Tests"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-    -- FRAME PRINCIPAL
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 240, 0, 250) -- Aumentei para caber mais opções
-    frame.Position = UDim2.new(0.5, -120, 0.5, -125) -- Centralizado
-    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-    frame.BackgroundTransparency = 0.1
-    frame.BorderSizePixel = 0
-    frame.ClipsDescendants = true
-    frame.Parent = screenGui
-
-    -- Borda brilhante (efeito neon)
-    local borda = Instance.new("Frame")
-    borda.Size = UDim2.new(1, 2, 1, 2)
-    borda.Position = UDim2.new(0, -1, 0, -1)
-    borda.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    borda.BackgroundTransparency = 0.3
-    borda.BorderSizePixel = 0
-    borda.Parent = frame
-    local cornerBorda = Instance.new("UICorner")
-    cornerBorda.CornerRadius = UDim.new(0, 10)
-    cornerBorda.Parent = borda
-
-    -- Arredondamento principal
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = frame
-
-    -- Sombra (DropShadow)
-    local sombra = Instance.new("Frame")
-    sombra.Size = UDim2.new(1, 10, 1, 10)
-    sombra.Position = UDim2.new(0, -5, 0, -5)
-    sombra.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    sombra.BackgroundTransparency = 0.7
-    sombra.BorderSizePixel = 0
-    sombra.ZIndex = 0
-    sombra.Parent = frame
-    local cornerSombra = Instance.new("UICorner")
-    cornerSombra.CornerRadius = UDim.new(0, 12)
-    cornerSombra.Parent = sombra
-
-    -- GRADIENTE DO TOPO
-    local gradiente = Instance.new("Frame")
-    gradiente.Size = UDim2.new(1, 0, 0, 45)
-    gradiente.Position = UDim2.new(0, 0, 0, 0)
-    gradiente.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    gradiente.BackgroundTransparency = 0.2
-    gradiente.BorderSizePixel = 0
-    gradiente.Parent = frame
-    local cornerGrad = Instance.new("UICorner")
-    cornerGrad.CornerRadius = UDim.new(0, 10)
-    cornerGrad.Parent = gradiente
-
-    -- TÍTULO "CREATOR: LEGACY"
-    local titulo = Instance.new("TextLabel")
-    titulo.Size = UDim2.new(1, 0, 0, 25)
-    titulo.Position = UDim2.new(0, 0, 0, 8)
-    titulo.BackgroundTransparency = 1
-    titulo.Text = "CREATOR: LEGACY"
-    titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titulo.TextScaled = true
-    titulo.Font = Enum.Font.GothamBold
-    titulo.TextStrokeColor3 = Color3.fromRGB(150, 0, 0)
-    titulo.TextStrokeTransparency = 0.5
-    titulo.Parent = frame
-
-    -- SUBTÍTULO
-    local subtitulo = Instance.new("TextLabel")
-    subtitulo.Size = UDim2.new(1, 0, 0, 15)
-    subtitulo.Position = UDim2.new(0, 0, 0, 30)
-    subtitulo.BackgroundTransparency = 1
-    subtitulo.Text = "⚡ TESTING TOOLS ⚡"
-    subtitulo.TextColor3 = Color3.fromRGB(200, 200, 200)
-    subtitulo.TextScaled = true
-    subtitulo.Font = Enum.Font.Gotham
-    subtitulo.Parent = frame
-
-    -- LINHA DIVISÓRIA
-    local linha = Instance.new("Frame")
-    linha.Size = UDim2.new(0.9, 0, 0, 1)
-    linha.Position = UDim2.new(0.05, 0, 0, 50)
-    linha.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    linha.BackgroundTransparency = 0.3
-    linha.BorderSizePixel = 0
-    linha.Parent = frame
-
-    -- BOTÃO ESP
-    local btnESP = Instance.new("TextButton")
-    btnESP.Size = UDim2.new(0.9, 0, 0, 40)
-    btnESP.Position = UDim2.new(0.05, 0, 0, 60)
-    btnESP.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    btnESP.BackgroundTransparency = 0.3
-    btnESP.Text = "🔴 ESP: DESLIGADO"
-    btnESP.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btnESP.TextScaled = true
-    btnESP.Font = Enum.Font.GothamBold
-    btnESP.Parent = frame
-    local cornerBtn1 = Instance.new("UICorner")
-    cornerBtn1.CornerRadius = UDim.new(0, 6)
-    cornerBtn1.Parent = btnESP
-
-    -- Efeito hover (mouse em cima) - BOTÃO ESP
-    btnESP.MouseEnter:Connect(function()
-        btnESP.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    end)
-    btnESP.MouseLeave:Connect(function()
-        if ESP_Ativado then
-            btnESP.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        else
-            btnESP.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-        end
-    end)
-
-    -- BOTÃO AIMBOT
-    local btnAimbot = Instance.new("TextButton")
-    btnAimbot.Size = UDim2.new(0.9, 0, 0, 40)
-    btnAimbot.Position = UDim2.new(0.05, 0, 0, 110)
-    btnAimbot.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    btnAimbot.BackgroundTransparency = 0.3
-    btnAimbot.Text = "🎯 AIMBOT: DESLIGADO"
-    btnAimbot.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btnAimbot.TextScaled = true
-    btnAimbot.Font = Enum.Font.GothamBold
-    btnAimbot.Parent = frame
-    local cornerBtn2 = Instance.new("UICorner")
-    cornerBtn2.CornerRadius = UDim.new(0, 6)
-    cornerBtn2.Parent = btnAimbot
-
-    -- Efeito hover (mouse em cima) - BOTÃO AIMBOT
-    btnAimbot.MouseEnter:Connect(function()
-        btnAimbot.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    end)
-    btnAimbot.MouseLeave:Connect(function()
-        if Aimbot_Ativado then
-            btnAimbot.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-        else
-            btnAimbot.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-        end
-    end)
-
-    -- BOTÃO FUTURO (placeholder para mais opções)
-    local btnFuturo = Instance.new("TextButton")
-    btnFuturo.Size = UDim2.new(0.9, 0, 0, 40)
-    btnFuturo.Position = UDim2.new(0.05, 0, 0, 160)
-    btnFuturo.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    btnFuturo.BackgroundTransparency = 0.3
-    btnFuturo.Text = "⏳ MAIS OPÇÕES EM BREVE"
-    btnFuturo.TextColor3 = Color3.fromRGB(150, 150, 150)
-    btnFuturo.TextScaled = true
-    btnFuturo.Font = Enum.Font.Gotham
-    btnFuturo.Parent = frame
-    local cornerBtn3 = Instance.new("UICorner")
-    cornerBtn3.CornerRadius = UDim.new(0, 6)
-    cornerBtn3.Parent = btnFuturo
-    btnFuturo.MouseEnter:Connect(function()
-        btnFuturo.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    end)
-    btnFuturo.MouseLeave:Connect(function()
-        btnFuturo.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    end)
-
-    -- RODAPÉ
-    local rodape = Instance.new("TextLabel")
-    rodape.Size = UDim2.new(1, 0, 0, 20)
-    rodape.Position = UDim2.new(0, 0, 0, 225)
-    rodape.BackgroundTransparency = 1
-    rodape.Text = "Aimbot: 35 studs | Mira: Peito"
-    rodape.TextColor3 = Color3.fromRGB(100, 100, 100)
-    rodape.TextScaled = true
-    rodape.Font = Enum.Font.Gotham
-    rodape.Parent = frame
-
-    -- ===== FUNÇÕES DOS BOTÕES =====
-    btnESP.MouseButton1Click:Connect(function()
-        ESP_Ativado = not ESP_Ativado
-        btnESP.Text = ESP_Ativado and "🔴 ESP: LIGADO" or "🔴 ESP: DESLIGADO"
-        btnESP.BackgroundColor3 = ESP_Ativado and Color3.fromRGB(200, 50, 50) or Color3.fromRGB(40, 40, 50)
-        atualizarESP()
-    end)
-
-    btnAimbot.MouseButton1Click:Connect(function()
-        Aimbot_Ativado = not Aimbot_Ativado
-        btnAimbot.Text = Aimbot_Ativado and "🎯 AIMBOT: LIGADO (35 studs)" or "🎯 AIMBOT: DESLIGADO"
-        btnAimbot.BackgroundColor3 = Aimbot_Ativado and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(40, 40, 50)
-        if not Aimbot_Ativado then
-            alvoAtual = nil
-        end
-    end)
-
-    -- ===== SISTEMA DE ARRASTAR (CORRIGIDO) =====
-    local dragging = false
-    local dragStartPos = nil
-    local dragFramePos = nil
-    local dragInput = nil
-
-    -- Função para iniciar o arraste
-    local function startDrag(input)
-        dragging = true
-        dragStartPos = input.Position
-        dragFramePos = frame.Position
-    end
-
-    -- Função para atualizar o arraste
-    local function updateDrag(input)
-        if dragging then
-            local delta = input.Position - dragStartPos
-            frame.Position = UDim2.new(
-                dragFramePos.X.Scale, 
-                dragFramePos.X.Offset + delta.X,
-                dragFramePos.Y.Scale, 
-                dragFramePos.Y.Offset + delta.Y
-            )
-        end
-    end
-
-    -- Função para parar o arraste
-    local function stopDrag()
-        dragging = false
-    end
-
-    -- Eventos para arrastar (qualquer lugar do frame)
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            startDrag(input)
-        end
-    end)
-
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateDrag(input)
-        end
-    end)
-
-    frame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            stopDrag()
-        end
-    end)
-
-    -- Suporte a toque (dispositivos móveis)
-    frame.TouchBegan:Connect(function(touch)
-        startDrag(touch)
-    end)
-
-    frame.TouchMoved:Connect(function(touch)
-        updateDrag(touch)
-    end)
-
-    frame.TouchEnded:Connect(function()
-        stopDrag()
-    end)
+    local sg=Instance.new("ScreenGui");sg.Name="HackLab";sg.ResetOnSpawn=false;sg.Parent=plr:WaitForChild("PlayerGui")
+    local f=Instance.new("Frame");f.Size=UDim2.new(0,280,0,400);f.Position=UDim2.new(0.5,-140,0.5,-200);f.BackgroundColor3=Color3.fromRGB(10,10,20);f.BackgroundTransparency=0.1;f.BorderSizePixel=0;f.ClipsDescendants=true;f.Parent=sg
+    local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,10);c.Parent=f
+    local t=Instance.new("TextLabel");t.Size=UDim2.new(1,0,0,30);t.Position=UDim2.new(0,0,0,5);t.BackgroundTransparency=1;t.Text="🧪 HACK LAB";t.TextColor3=Color3.fromRGB(255,255,255);t.TextScaled=true;t.Font=Enum.Font.GothamBold;t.Parent=f
+    local st=Instance.new("TextLabel");st.Size=UDim2.new(1,0,0,15);st.Position=UDim2.new(0,0,0,32);st.BackgroundTransparency=1;st.Text="LEGACY EDITION";st.TextColor3=Color3.fromRGB(150,150,150);st.TextScaled=true;st.Font=Enum.Font.Gotham;st.Parent=f
+    -- Abas
+    local af=Instance.new("Frame");af.Size=UDim2.new(1,0,0,30);af.Position=UDim2.new(0,0,0,50);af.BackgroundTransparency=1;af.Parent=f
+    local function criarAba(nome,pos,cor)local b=Instance.new("TextButton");b.Size=UDim2.new(0.25,0,1,0);b.Position=UDim2.new(pos,0,0,0);b.BackgroundColor3=cor or Color3.fromRGB(40,40,50);b.Text=nome;b.TextColor3=Color3.fromRGB(255,255,255);b.TextScaled=true;b.Font=Enum.Font.GothamBold;b.Parent=af;local cc=Instance.new("UICorner");cc.CornerRadius=UDim.new(0,4);cc.Parent=b;return b end
+    local aba1=criarAba("ESP",0,Color3.fromRGB(200,50,50));local aba2=criarAba("AIM",0.25,Color3.fromRGB(40,40,50));local aba3=criarAba("MOV",0.5,Color3.fromRGB(40,40,50));local aba4=criarAba("MISC",0.75,Color3.fromRGB(40,40,50))
+    -- Conteúdo
+    local cf=Instance.new("ScrollingFrame");cf.Size=UDim2.new(1,-10,0,290);cf.Position=UDim2.new(0,5,0,85);cf.BackgroundTransparency=1;cf.BorderSizePixel=0;cf.CanvasSize=UDim2.new(0,0,0,500);cf.ScrollBarThickness=5;cf.Parent=f
+    local function btn(nome,desc,pos,cor)local b=Instance.new("TextButton");b.Size=UDim2.new(0.95,0,0,40);b.Position=UDim2.new(0.025,0,0,pos);b.BackgroundColor3=cor or Color3.fromRGB(40,40,50);b.BackgroundTransparency=0.2;b.Text=nome..": OFF";b.TextColor3=Color3.fromRGB(255,255,255);b.TextScaled=true;b.Font=Enum.Font.GothamBold;b.Parent=cf;local bc=Instance.new("UICorner");bc.CornerRadius=UDim.new(0,5);bc.Parent=b;local d=Instance.new("TextLabel");d.Size=UDim2.new(1,0,0,15);d.Position=UDim2.new(0,0,0,42);d.BackgroundTransparency=1;d.Text=desc;d.TextColor3=Color3.fromRGB(100,100,100);d.TextScaled=true;d.Font=Enum.Font.Gotham;d.Parent=b;return b end
+    -- BOTÕES
+    local bESP=btn("🔴 ESP","Contorno nos inimigos",0,Color3.fromRGB(200,50,50))
+    local bAIM=btn("🎯 Aimbot","Mira automática 35s",50,Color3.fromRGB(50,200,50))
+    local bSPD=btn("⚡ Speed","Velocidade x2",100,Color3.fromRGB(50,100,200))
+    local bFLY=btn("🕊️ Fly","Voar (Espaço)",150,Color3.fromRGB(150,50,200))
+    local bNOC=btn("🌀 NoClip","Atravessar paredes",200,Color3.fromRGB(200,150,50))
+    local bJMP=btn("🦘 Inf. Jump","Pulo infinito",250,Color3.fromRGB(50,200,200))
+    local botoes={bESP,bAIM,bSPD,bFLY,bNOC,bJMP}
+    -- Sistema de abas
+    local function mostrarAba(i)for x,b in ipairs(botoes)do b.Visible=(x>=i*2-1 and x<=i*2)end end
+    local function resetAbas()aba1.BackgroundColor3=Color3.fromRGB(40,40,50);aba2.BackgroundColor3=Color3.fromRGB(40,40,50);aba3.BackgroundColor3=Color3.fromRGB(40,40,50);aba4.BackgroundColor3=Color3.fromRGB(40,40,50);aba1.TextColor3=Color3.fromRGB(200,200,200);aba2.TextColor3=Color3.fromRGB(200,200,200);aba3.TextColor3=Color3.fromRGB(200,200,200);aba4.TextColor3=Color3.fromRGB(200,200,200)end
+    aba1.MouseButton1Click:Connect(function()resetAbas();aba1.BackgroundColor3=Color3.fromRGB(200,50,50);aba1.TextColor3=Color3.fromRGB(255,255,255);mostrarAba(1)end)
+    aba2.MouseButton1Click:Connect(function()resetAbas();aba2.BackgroundColor3=Color3.fromRGB(50,200,50);aba2.TextColor3=Color3.fromRGB(255,255,255);mostrarAba(2)end)
+    aba3.MouseButton1Click:Connect(function()resetAbas();aba3.BackgroundColor3=Color3.fromRGB(100,100,200);aba3.TextColor3=Color3.fromRGB(255,255,255);mostrarAba(3)end)
+    aba4.MouseButton1Click:Connect(function()resetAbas();aba4.BackgroundColor3=Color3.fromRGB(200,150,50);aba4.TextColor3=Color3.fromRGB(255,255,255);mostrarAba(4)end)
+    mostrarAba(1)
+    -- Funções dos botões
+    bESP.MouseButton1Click:Connect(function()ESP_ON=not ESP_ON;bESP.Text=ESP_ON and"🔴 ESP: ON"or"🔴 ESP: OFF";bESP.BackgroundColor3=ESP_ON and Color3.fromRGB(200,50,50)or Color3.fromRGB(40,40,50);atualizarESP()end)
+    bAIM.MouseButton1Click:Connect(function()AIM_ON=not AIM_ON;bAIM.Text=AIM_ON and"🎯 AIM: ON"or"🎯 AIM: OFF";bAIM.BackgroundColor3=AIM_ON and Color3.fromRGB(50,200,50)or Color3.fromRGB(40,40,50)end)
+    bSPD.MouseButton1Click:Connect(function()toggleSpeed();bSPD.Text=SPD_ON and"⚡ Speed: ON"or"⚡ Speed: OFF";bSPD.BackgroundColor3=SPD_ON and Color3.fromRGB(50,100,200)or Color3.fromRGB(40,40,50)end)
+    bFLY.MouseButton1Click:Connect(function()toggleFly();bFLY.Text=FLY_ON and"🕊️ Fly: ON"or"🕊️ Fly: OFF";bFLY.BackgroundColor3=FLY_ON and Color3.fromRGB(150,50,200)or Color3.fromRGB(40,40,50)end)
+    bNOC.MouseButton1Click:Connect(function()toggleNoClip();bNOC.Text=NOCLIP_ON and"🌀 NoClip: ON"or"🌀 NoClip: OFF";bNOC.BackgroundColor3=NOCLIP_ON and Color3.fromRGB(200,150,50)or Color3.fromRGB(40,40,50)end)
+    bJMP.MouseButton1Click:Connect(function()toggleJump();bJMP.Text=JUMP_ON and"🦘 Jump: ON"or"🦘 Jump: OFF";bJMP.BackgroundColor3=JUMP_ON and Color3.fromRGB(50,200,200)or Color3.fromRGB(40,40,50)end)
+    -- Arrastar
+    local drag=false;local startPos=nil;local framePos=nil
+    f.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true;startPos=i.Position;framePos=f.Position end end)
+    f.InputChanged:Connect(function(i)if drag and i.UserInputType==Enum.UserInputType.MouseMovement then local d=i.Position-startPos;f.Position=UDim2.new(framePos.X.Scale,framePos.X.Offset+d.X,framePos.Y.Scale,framePos.Y.Offset+d.Y)end end)
+    f.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end)
 end
 
--- ===== LOOP PRINCIPAL =====
-RunService.RenderStepped:Connect(function()
-    -- AIMBOT AUTOMÁTICO
-    if Aimbot_Ativado then
-        local novoAlvo = getJogadorMaisProximo()
-        
-        if novoAlvo then
-            alvoAtual = novoAlvo
-            local char = alvoAtual.Character
-            if char then
-                local alvoRoot = char:FindFirstChild("HumanoidRootPart")
-                if alvoRoot then
-                    local posMirar = alvoRoot.Position + Vector3.new(0, CONFIG.OffsetAimbotY, 0)
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, posMirar)
-                end
-            end
-        else
-            alvoAtual = nil
-        end
-    else
-        if alvoAtual then
-            alvoAtual = nil
-        end
-    end
-
-    -- ESP (mantém os highlights ativos)
-    if ESP_Ativado then
-        for _, jogador in ipairs(Players:GetPlayers()) do
-            if jogador ~= LocalPlayer then
-                local char = jogador.Character
-                if char then
-                    if not highlights[jogador] then
-                        local novoHighlight = criarHighlight(char)
-                        if novoHighlight then
-                            highlights[jogador] = novoHighlight
-                        end
-                    elseif highlights[jogador].Adornee ~= char then
-                        highlights[jogador]:Destroy()
-                        highlights[jogador] = nil
-                        local novoHighlight = criarHighlight(char)
-                        if novoHighlight then
-                            highlights[jogador] = novoHighlight
-                        end
-                    end
-                else
-                    if highlights[jogador] then
-                        highlights[jogador]:Destroy()
-                        highlights[jogador] = nil
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- ===== INICIALIZAÇÃO =====
+-- INICIAR
 criarMenu()
-atualizarESP()
-print("Menu de testes carregado! Creator: Legacy - Aimbot automático (35 studs) - Mira no peito.")
+print("Hack Lab v2.0 carregado! (<400 linhas)")
