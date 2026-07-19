@@ -1,5 +1,5 @@
 -- ============================================
--- HACK LAB v9.0 - KILL AURA + TELEPORT GRUDAR
+-- HACK LAB v9.1 - KILL AURA (MATA DIRETO) + TELEPORT GRUDAR
 -- ============================================
 local Players=game:GetService("Players");local LP=Players.LocalPlayer;local RS=game:GetService("RunService");local plr=LP;local char=nil;local root=nil
 
@@ -17,7 +17,7 @@ local function criarESP(personagem) if not personagem then return nil end;local 
 local function removerESP() for _,h in pairs(highlights)do if h and h.Parent then h:Destroy()end end;highlights={} end
 local function atualizarESP() if ESP_ON then for _,j in pairs(Players:GetPlayers())do if j~=plr then local c=j.Character;if c and not highlights[j]then local h=criarESP(c);if h then highlights[j]=h end end end end else removerESP() end end
 
--- ===== KILL AURA (MORTE INSTANTÂNEA) =====
+-- ===== KILL AURA (MATA DIRETO) =====
 local function killAura()
     local c=getChar() if not c or not root then return end
     local origem=root.Position
@@ -30,12 +30,11 @@ local function killAura()
                 if r and h and h.Health>0 then
                     local dist=(r.Position-origem).Magnitude
                     if dist<20 then -- Raio de 20 studs
-                        -- MATA INSTANTANEAMENTE
-                        pcall(function() h.Health=0 end)
-                        -- JOGA PRO VOID
-                        pcall(function() r.CFrame=CFrame.new(0,1000,0) end)
-                        -- REMOVE O PERSONAGEM
-                        pcall(function() c2:Destroy() end)
+                        -- MATA DIRETO (sem jogar pra longe, sem destruir)
+                        pcall(function() 
+                            h.Health = 0 
+                            h:BreakJoints() -- Força a morte imediata
+                        end)
                         print("💀 Matou: "..j.Name)
                     end
                 end
@@ -85,7 +84,7 @@ RS.RenderStepped:Connect(function()
         end
     end
     
-    -- KILL AURA
+    -- KILL AURA (MATA DIRETO)
     if KILL_ON then
         killAura()
     end
@@ -235,4 +234,4 @@ end
 
 criarMenu()
 atualizarESP()
-print("💀 Hack Lab v9.0 - KILL AURA + TELEPORT GRUDAR")
+print("💀 Hack Lab v9.1 - KILL AURA (MATA DIRETO) + TELEPORT GRUDAR")
