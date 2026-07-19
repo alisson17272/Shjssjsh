@@ -1,16 +1,16 @@
 -- ============================================
--- HACK LAB COMPACT v2.0 - <400 LINHAS
+-- HACK LAB v6.0 - MOBILE (CLICK NO BOTÃO)
+-- ESP + AIMBOT + AUTO-ATAQUE NO BOTÃO
 -- ============================================
-local Players=game:GetService("Players");local LP=Players.LocalPlayer;local RS=game:GetService("RunService");local UIS=game:GetService("UserInputService");local Camera=workspace.CurrentCamera;local plr=LP;local char=nil;local root=nil
+local Players=game:GetService("Players");local LP=Players.LocalPlayer;local RS=game:GetService("RunService");local UIS=game:GetService("UserInputService");local Camera=workspace.CurrentCamera;local VIM=game:GetService("VirtualInputManager");local plr=LP;local char=nil;local root=nil
 
 -- CONFIGS
-local DIST=35;local COR=Color3.fromRGB(255,0,0);local ESP_ON=false;local AIM_ON=false;local SPD_ON=false;local FLY_ON=false;local NOCLIP_ON=false;local JUMP_ON=false
-local flying=false;local flySpeed=50;local noclipEnabled=false;local jumpMultiplier=1
-local highlights={};local alvoAtual=nil
+local DIST=35;local COR=Color3.fromRGB(255,0,0);local ESP_ON=false;local AIM_ON=false;local ATK_ON=false
+
+local highlights={}
 
 -- FUNÇÕES AUXILIARES
 local function getChar() char=plr.Character;if char then root=char:FindFirstChild("HumanoidRootPart") end;return char end
-local function getHumanoid() local c=getChar();return c and c:FindFirstChild("Humanoid") end
 
 -- ESP
 local function criarESP(personagem) if not personagem then return nil end;local h=Instance.new("Highlight");h.Name="ESP";h.Adornee=personagem;h.OutlineColor=COR;h.FillColor=COR;h.FillTransparency=1;h.OutlineTransparency=0;h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop;h.Parent=personagem;return h end
@@ -20,79 +20,229 @@ local function atualizarESP() if ESP_ON then for _,j in pairs(Players:GetPlayers
 -- AIMBOT
 local function getAlvo() local c=getChar()if not c or not root then return nil end;local origem=root.Position;local alvo=nil;local menorDist=DIST;for _,j in pairs(Players:GetPlayers())do if j~=plr then local c2=j.Character;if c2 then local r=c2:FindFirstChild("HumanoidRootPart");local h=c2:FindFirstChild("Humanoid");if r and h and h.Health>0 then local dist=(r.Position-origem).Magnitude;if dist<menorDist then menorDist=dist;alvo=j end end end end end;return alvo end
 
--- SPEED
-local function toggleSpeed() SPD_ON=not SPD_ON;local hum=getHumanoid();if hum then hum.WalkSpeed=SPD_ON and 32 or 16 end end
+-- ===== FUNÇÃO QUE CLICA NO BOTÃO DE ATAQUE =====
+local botaoAtaque = nil
 
--- FLY
-local function toggleFly() FLY_ON=not FLY_ON;flying=false;local hum=getHumanoid();if hum then hum.PlatformStand=FLY_ON end end
-UIS.InputBegan:Connect(function(i,g)if g then return end;if FLY_ON and i.KeyCode==Enum.KeyCode.Space then flying=true end end)
-UIS.InputEnded:Connect(function(i)if FLY_ON and i.KeyCode==Enum.KeyCode.Space then flying=false end end)
-
--- NOCLIP
-local function toggleNoClip() NOCLIP_ON=not NOCLIP_ON;noclipEnabled=NOCLIP_ON end
-
--- JUMP
-local function toggleJump() JUMP_ON=not JUMP_ON;local hum=getHumanoid();if hum then hum.JumpPower=JUMP_ON and 200 or 50 end end
-
--- LOOP PRINCIPAL
-RS.RenderStepped:Connect(function()
-    local c=getChar()
-    -- Fly
-    if FLY_ON and c and c:FindFirstChild("HumanoidRootPart") then
-        local hrp=c.HumanoidRootPart;local vel=hrp.Velocity;local moveDir=Vector3.new(0,0,0);local f=UIS:IsKeyDown(Enum.KeyCode.W) and 1 or 0;local b=UIS:IsKeyDown(Enum.KeyCode.S) and -1 or 0;local a=UIS:IsKeyDown(Enum.KeyCode.A) and -1 or 0;local d=UIS:IsKeyDown(Enum.KeyCode.D) and 1 or 0;local up=UIS:IsKeyDown(Enum.KeyCode.Space) and 1 or 0;local down=UIS:IsKeyDown(Enum.KeyCode.LeftShift) and -1 or 0;moveDir=Vector3.new(a+d,up+down,f+b);if moveDir.Magnitude>0 then moveDir=moveDir.Unit*flySpeed else moveDir=Vector3.new(0,0,0) end;hrp.Velocity=Vector3.new(moveDir.X,vel.Y+moveDir.Y,moveDir.Z)
+local function encontrarBotaoAtaque()
+    -- Procura em todas as ScreenGuis da tela
+    for _, gui in pairs(plr.PlayerGui:GetChildren()) do
+        if gui:IsA("ScreenGui") then
+            -- Procura por botões com nomes comuns de ataque
+            for _, btn in pairs(gui:GetDescendants()) do
+                if btn:IsA("ImageButton") or btn:IsA("TextButton") then
+                    local nome = btn.Name:lower()
+                    -- Lista de nomes comuns de botão de ataque
+                    if nome:find("attack") or nome:find("soco") or nome:find("hit") or 
+                       nome:find("fight") or nome:find("punch") or nome:find("ataque") or
+                       nome:find("kill") or nome:find("damage") or nome:find("lutar") then
+                        botaoAtaque = btn
+                        print("🔍 Botão de ataque encontrado: " .. btn.Name)
+                        return btn
+                    end
+                end
+            end
+        end
     end
-    -- NoClip
-    if NOCLIP_ON and c then for _,p in pairs(c:GetDescendants())do if p:IsA("BasePart")then p.CanCollide=false end end end
-    -- ESP
-    if ESP_ON then for _,j in pairs(Players:GetPlayers())do if j~=plr then local c2=j.Character;if c2 then if not highlights[j]then local h=criarESP(c2);if h then highlights[j]=h end elseif highlights[j].Adornee~=c2 then highlights[j]:Destroy();highlights[j]=nil;local h=criarESP(c2);if h then highlights[j]=h end end else if highlights[j]then highlights[j]:Destroy();highlights[j]=nil end end end end end
-    -- Aimbot
-    if AIM_ON then local alvo=getAlvo();if alvo then local c2=alvo.Character;if c2 then local r=c2:FindFirstChild("HumanoidRootPart");if r then Camera.CFrame=CFrame.new(Camera.CFrame.Position,r.Position)end end end end
-end)
-
--- MENU
-local function criarMenu()
-    local sg=Instance.new("ScreenGui");sg.Name="HackLab";sg.ResetOnSpawn=false;sg.Parent=plr:WaitForChild("PlayerGui")
-    local f=Instance.new("Frame");f.Size=UDim2.new(0,280,0,400);f.Position=UDim2.new(0.5,-140,0.5,-200);f.BackgroundColor3=Color3.fromRGB(10,10,20);f.BackgroundTransparency=0.1;f.BorderSizePixel=0;f.ClipsDescendants=true;f.Parent=sg
-    local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,10);c.Parent=f
-    local t=Instance.new("TextLabel");t.Size=UDim2.new(1,0,0,30);t.Position=UDim2.new(0,0,0,5);t.BackgroundTransparency=1;t.Text="🧪 HACK LAB";t.TextColor3=Color3.fromRGB(255,255,255);t.TextScaled=true;t.Font=Enum.Font.GothamBold;t.Parent=f
-    local st=Instance.new("TextLabel");st.Size=UDim2.new(1,0,0,15);st.Position=UDim2.new(0,0,0,32);st.BackgroundTransparency=1;st.Text="LEGACY EDITION";st.TextColor3=Color3.fromRGB(150,150,150);st.TextScaled=true;st.Font=Enum.Font.Gotham;st.Parent=f
-    -- Abas
-    local af=Instance.new("Frame");af.Size=UDim2.new(1,0,0,30);af.Position=UDim2.new(0,0,0,50);af.BackgroundTransparency=1;af.Parent=f
-    local function criarAba(nome,pos,cor)local b=Instance.new("TextButton");b.Size=UDim2.new(0.25,0,1,0);b.Position=UDim2.new(pos,0,0,0);b.BackgroundColor3=cor or Color3.fromRGB(40,40,50);b.Text=nome;b.TextColor3=Color3.fromRGB(255,255,255);b.TextScaled=true;b.Font=Enum.Font.GothamBold;b.Parent=af;local cc=Instance.new("UICorner");cc.CornerRadius=UDim.new(0,4);cc.Parent=b;return b end
-    local aba1=criarAba("ESP",0,Color3.fromRGB(200,50,50));local aba2=criarAba("AIM",0.25,Color3.fromRGB(40,40,50));local aba3=criarAba("MOV",0.5,Color3.fromRGB(40,40,50));local aba4=criarAba("MISC",0.75,Color3.fromRGB(40,40,50))
-    -- Conteúdo
-    local cf=Instance.new("ScrollingFrame");cf.Size=UDim2.new(1,-10,0,290);cf.Position=UDim2.new(0,5,0,85);cf.BackgroundTransparency=1;cf.BorderSizePixel=0;cf.CanvasSize=UDim2.new(0,0,0,500);cf.ScrollBarThickness=5;cf.Parent=f
-    local function btn(nome,desc,pos,cor)local b=Instance.new("TextButton");b.Size=UDim2.new(0.95,0,0,40);b.Position=UDim2.new(0.025,0,0,pos);b.BackgroundColor3=cor or Color3.fromRGB(40,40,50);b.BackgroundTransparency=0.2;b.Text=nome..": OFF";b.TextColor3=Color3.fromRGB(255,255,255);b.TextScaled=true;b.Font=Enum.Font.GothamBold;b.Parent=cf;local bc=Instance.new("UICorner");bc.CornerRadius=UDim.new(0,5);bc.Parent=b;local d=Instance.new("TextLabel");d.Size=UDim2.new(1,0,0,15);d.Position=UDim2.new(0,0,0,42);d.BackgroundTransparency=1;d.Text=desc;d.TextColor3=Color3.fromRGB(100,100,100);d.TextScaled=true;d.Font=Enum.Font.Gotham;d.Parent=b;return b end
-    -- BOTÕES
-    local bESP=btn("🔴 ESP","Contorno nos inimigos",0,Color3.fromRGB(200,50,50))
-    local bAIM=btn("🎯 Aimbot","Mira automática 35s",50,Color3.fromRGB(50,200,50))
-    local bSPD=btn("⚡ Speed","Velocidade x2",100,Color3.fromRGB(50,100,200))
-    local bFLY=btn("🕊️ Fly","Voar (Espaço)",150,Color3.fromRGB(150,50,200))
-    local bNOC=btn("🌀 NoClip","Atravessar paredes",200,Color3.fromRGB(200,150,50))
-    local bJMP=btn("🦘 Inf. Jump","Pulo infinito",250,Color3.fromRGB(50,200,200))
-    local botoes={bESP,bAIM,bSPD,bFLY,bNOC,bJMP}
-    -- Sistema de abas
-    local function mostrarAba(i)for x,b in ipairs(botoes)do b.Visible=(x>=i*2-1 and x<=i*2)end end
-    local function resetAbas()aba1.BackgroundColor3=Color3.fromRGB(40,40,50);aba2.BackgroundColor3=Color3.fromRGB(40,40,50);aba3.BackgroundColor3=Color3.fromRGB(40,40,50);aba4.BackgroundColor3=Color3.fromRGB(40,40,50);aba1.TextColor3=Color3.fromRGB(200,200,200);aba2.TextColor3=Color3.fromRGB(200,200,200);aba3.TextColor3=Color3.fromRGB(200,200,200);aba4.TextColor3=Color3.fromRGB(200,200,200)end
-    aba1.MouseButton1Click:Connect(function()resetAbas();aba1.BackgroundColor3=Color3.fromRGB(200,50,50);aba1.TextColor3=Color3.fromRGB(255,255,255);mostrarAba(1)end)
-    aba2.MouseButton1Click:Connect(function()resetAbas();aba2.BackgroundColor3=Color3.fromRGB(50,200,50);aba2.TextColor3=Color3.fromRGB(255,255,255);mostrarAba(2)end)
-    aba3.MouseButton1Click:Connect(function()resetAbas();aba3.BackgroundColor3=Color3.fromRGB(100,100,200);aba3.TextColor3=Color3.fromRGB(255,255,255);mostrarAba(3)end)
-    aba4.MouseButton1Click:Connect(function()resetAbas();aba4.BackgroundColor3=Color3.fromRGB(200,150,50);aba4.TextColor3=Color3.fromRGB(255,255,255);mostrarAba(4)end)
-    mostrarAba(1)
-    -- Funções dos botões
-    bESP.MouseButton1Click:Connect(function()ESP_ON=not ESP_ON;bESP.Text=ESP_ON and"🔴 ESP: ON"or"🔴 ESP: OFF";bESP.BackgroundColor3=ESP_ON and Color3.fromRGB(200,50,50)or Color3.fromRGB(40,40,50);atualizarESP()end)
-    bAIM.MouseButton1Click:Connect(function()AIM_ON=not AIM_ON;bAIM.Text=AIM_ON and"🎯 AIM: ON"or"🎯 AIM: OFF";bAIM.BackgroundColor3=AIM_ON and Color3.fromRGB(50,200,50)or Color3.fromRGB(40,40,50)end)
-    bSPD.MouseButton1Click:Connect(function()toggleSpeed();bSPD.Text=SPD_ON and"⚡ Speed: ON"or"⚡ Speed: OFF";bSPD.BackgroundColor3=SPD_ON and Color3.fromRGB(50,100,200)or Color3.fromRGB(40,40,50)end)
-    bFLY.MouseButton1Click:Connect(function()toggleFly();bFLY.Text=FLY_ON and"🕊️ Fly: ON"or"🕊️ Fly: OFF";bFLY.BackgroundColor3=FLY_ON and Color3.fromRGB(150,50,200)or Color3.fromRGB(40,40,50)end)
-    bNOC.MouseButton1Click:Connect(function()toggleNoClip();bNOC.Text=NOCLIP_ON and"🌀 NoClip: ON"or"🌀 NoClip: OFF";bNOC.BackgroundColor3=NOCLIP_ON and Color3.fromRGB(200,150,50)or Color3.fromRGB(40,40,50)end)
-    bJMP.MouseButton1Click:Connect(function()toggleJump();bJMP.Text=JUMP_ON and"🦘 Jump: ON"or"🦘 Jump: OFF";bJMP.BackgroundColor3=JUMP_ON and Color3.fromRGB(50,200,200)or Color3.fromRGB(40,40,50)end)
-    -- Arrastar
-    local drag=false;local startPos=nil;local framePos=nil
-    f.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true;startPos=i.Position;framePos=f.Position end end)
-    f.InputChanged:Connect(function(i)if drag and i.UserInputType==Enum.UserInputType.MouseMovement then local d=i.Position-startPos;f.Position=UDim2.new(framePos.X.Scale,framePos.X.Offset+d.X,framePos.Y.Scale,framePos.Y.Offset+d.Y)end end)
-    f.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end)
+    
+    -- Se não encontrou, tenta achar pela posição (botões grandes no canto inferior direito)
+    for _, gui in pairs(plr.PlayerGui:GetChildren()) do
+        if gui:IsA("ScreenGui") then
+            for _, btn in pairs(gui:GetDescendants()) do
+                if (btn:IsA("ImageButton") or btn:IsA("TextButton")) and btn.Visible then
+                    -- Verifica se está no canto inferior direito (posição comum de botão de ataque)
+                    local pos = btn.AbsolutePosition
+                    local size = btn.AbsoluteSize
+                    local telaSize = Camera.ViewportSize
+                    if pos.X + size.X > telaSize.X * 0.6 and pos.Y + size.Y > telaSize.Y * 0.6 then
+                        botaoAtaque = btn
+                        print("🔍 Botão de ataque encontrado pela posição: " .. btn.Name)
+                        return btn
+                    end
+                end
+            end
+        end
+    end
+    
+    print("❌ Nenhum botão de ataque encontrado!")
+    return nil
 end
 
--- INICIAR
+-- Função para clicar no botão
+local function clicarBotaoAtaque()
+    if not botaoAtaque then
+        encontrarBotaoAtaque()
+        if not botaoAtaque then return end
+    end
+    
+    if botaoAtaque and botaoAtaque.Visible then
+        -- Método 1: Disparar evento de clique no botão
+        pcall(function()
+            botaoAtaque:Click()
+        end)
+        
+        -- Método 2: Simular toque no botão (celular)
+        pcall(function()
+            local pos = botaoAtaque.AbsolutePosition
+            local size = botaoAtaque.AbsoluteSize
+            local x = pos.X + size.X/2
+            local y = pos.Y + size.Y/2
+            VIM:SendMouseButtonEvent(true, x, y, 0, false, Enum.UserInputType.Touch, 0)
+            wait(0.01)
+            VIM:SendMouseButtonEvent(false, x, y, 0, false, Enum.UserInputType.Touch, 0)
+        end)
+        
+        -- Método 3: Disparar evento InputObject no botão
+        pcall(function()
+            local input = Instance.new("InputObject")
+            input.UserInputType = Enum.UserInputType.Touch
+            input.Position = Vector2.new(botaoAtaque.AbsolutePosition.X + botaoAtaque.AbsoluteSize.X/2, 
+                                        botaoAtaque.AbsolutePosition.Y + botaoAtaque.AbsoluteSize.Y/2)
+            botaoAtaque:Trigger(input)
+        end)
+    end
+end
+
+-- ===== REMOVER COOLDOWN =====
+local function removerCooldown()
+    local c=getChar()
+    if not c then return end
+    for _, obj in pairs(c:GetDescendants()) do
+        if obj:IsA("NumberValue") and (obj.Name:lower():find("cooldown") or obj.Name:lower():find("cd") or obj.Name:lower():find("delay")) then
+            obj.Value = 0
+        end
+        if obj:IsA("BoolValue") and (obj.Name:lower():find("canattack") or obj.Name:lower():find("ready")) then
+            obj.Value = true
+        end
+        pcall(function()
+            obj:SetAttribute("Cooldown", 0)
+            obj:SetAttribute("AttackCooldown", 0)
+            obj:SetAttribute("CanAttack", true)
+        end)
+    end
+end
+
+-- ===== LOOP PRINCIPAL =====
+RS.RenderStepped:Connect(function()
+    local c=getChar()
+    
+    -- ESP
+    if ESP_ON then
+        for _,j in pairs(Players:GetPlayers())do
+            if j~=plr then
+                local c2=j.Character
+                if c2 then
+                    if not highlights[j]then
+                        local h=criarESP(c2);if h then highlights[j]=h end
+                    elseif highlights[j].Adornee~=c2 then
+                        highlights[j]:Destroy();highlights[j]=nil
+                        local h=criarESP(c2);if h then highlights[j]=h end
+                    end
+                else
+                    if highlights[j]then highlights[j]:Destroy();highlights[j]=nil end
+                end
+            end
+        end
+    end
+    
+    -- AIMBOT
+    if AIM_ON then
+        local alvo=getAlvo()
+        if alvo then
+            local c2=alvo.Character
+            if c2 then
+                local r=c2:FindFirstChild("HumanoidRootPart")
+                if r then
+                    Camera.CFrame=CFrame.new(Camera.CFrame.Position,r.Position)
+                end
+            end
+        end
+    end
+    
+    -- AUTO-ATAQUE (CLICA NO BOTÃO DA TELA)
+    if ATK_ON then
+        clicarBotaoAtaque()
+        removerCooldown()
+        wait(0.02)
+    end
+end)
+
+-- ===== MENU =====
+local menuAberto=true;local sg=nil;local f=nil;local btnReabrir=nil
+
+local function criarMenu()
+    sg=Instance.new("ScreenGui");sg.Name="HackLab";sg.ResetOnSpawn=false;sg.Parent=plr:WaitForChild("PlayerGui")
+    f=Instance.new("Frame");f.Size=UDim2.new(0,260,0,220);f.Position=UDim2.new(0.5,-130,0.5,-110);f.BackgroundColor3=Color3.fromRGB(10,10,20);f.BackgroundTransparency=0.1;f.BorderSizePixel=0;f.ClipsDescendants=true;f.Parent=sg
+    local c=Instance.new("UICorner");c.CornerRadius=UDim.new(0,10);c.Parent=f
+    
+    local t=Instance.new("TextLabel");t.Size=UDim2.new(1,0,0,30);t.Position=UDim2.new(0,0,0,5);t.BackgroundTransparency=1;t.Text="📱 HACK LAB";t.TextColor3=Color3.fromRGB(255,255,255);t.TextScaled=true;t.Font=Enum.Font.GothamBold;t.Parent=f
+    
+    local btnX=Instance.new("TextButton");btnX.Size=UDim2.new(0,35,0,35);btnX.Position=UDim2.new(1,-40,0,5);btnX.BackgroundColor3=Color3.fromRGB(200,50,50);btnX.Text="✕";btnX.TextColor3=Color3.fromRGB(255,255,255);btnX.TextScaled=true;btnX.Font=Enum.Font.GothamBold;btnX.Parent=f
+    local cx=Instance.new("UICorner");cx.CornerRadius=UDim.new(0,8);cx.Parent=btnX
+    
+    local st=Instance.new("TextLabel");st.Size=UDim2.new(1,0,0,15);st.Position=UDim2.new(0,0,0,32);st.BackgroundTransparency=1;st.Text="CLICA NO BOTÃO DE ATAQUE";st.TextColor3=Color3.fromRGB(150,150,150);st.TextScaled=true;st.Font=Enum.Font.Gotham;st.Parent=f
+    
+    local function criarBotao(nome,pos)
+        local b=Instance.new("TextButton");b.Size=UDim2.new(0.9,0,0,40);b.Position=UDim2.new(0.05,0,0,pos);b.BackgroundColor3=Color3.fromRGB(40,40,50);b.BackgroundTransparency=0.2;b.Text=nome;b.TextColor3=Color3.fromRGB(255,255,255);b.TextScaled=true;b.Font=Enum.Font.GothamBold;b.Parent=f
+        local cb=Instance.new("UICorner");cb.CornerRadius=UDim.new(0,6);cb.Parent=b
+        return b
+    end
+    
+    local bESP=criarBotao("🔴 ESP: OFF",55)
+    local bAIM=criarBotao("🎯 AIMBOT: OFF",100)
+    local bATK=criarBotao("⚔️ AUTO-ATAQUE: OFF",145)
+    
+    bESP.MouseButton1Click:Connect(function()
+        ESP_ON=not ESP_ON;bESP.Text=ESP_ON and"🔴 ESP: ON"or"🔴 ESP: OFF";bESP.BackgroundColor3=ESP_ON and Color3.fromRGB(200,50,50)or Color3.fromRGB(40,40,50);atualizarESP()
+    end)
+    bESP.TouchTap:Connect(function()
+        ESP_ON=not ESP_ON;bESP.Text=ESP_ON and"🔴 ESP: ON"or"🔴 ESP: OFF";bESP.BackgroundColor3=ESP_ON and Color3.fromRGB(200,50,50)or Color3.fromRGB(40,40,50);atualizarESP()
+    end)
+    
+    bAIM.MouseButton1Click:Connect(function()
+        AIM_ON=not AIM_ON;bAIM.Text=AIM_ON and"🎯 AIMBOT: ON"or"🎯 AIMBOT: OFF";bAIM.BackgroundColor3=AIM_ON and Color3.fromRGB(50,200,50)or Color3.fromRGB(40,40,50)
+    end)
+    bAIM.TouchTap:Connect(function()
+        AIM_ON=not AIM_ON;bAIM.Text=AIM_ON and"🎯 AIMBOT: ON"or"🎯 AIMBOT: OFF";bAIM.BackgroundColor3=AIM_ON and Color3.fromRGB(50,200,50)or Color3.fromRGB(40,40,50)
+    end)
+    
+    bATK.MouseButton1Click:Connect(function()
+        ATK_ON=not ATK_ON;bATK.Text=ATK_ON and"⚔️ AUTO-ATAQUE: ON"or"⚔️ AUTO-ATAQUE: OFF";bATK.BackgroundColor3=ATK_ON and Color3.fromRGB(200,150,50)or Color3.fromRGB(40,40,50)
+        if ATK_ON then
+            encontrarBotaoAtaque() -- Procura o botão quando ativa
+        end
+    end)
+    bATK.TouchTap:Connect(function()
+        ATK_ON=not ATK_ON;bATK.Text=ATK_ON and"⚔️ AUTO-ATAQUE: ON"or"⚔️ AUTO-ATAQUE: OFF";bATK.BackgroundColor3=ATK_ON and Color3.fromRGB(200,150,50)or Color3.fromRGB(40,40,50)
+        if ATK_ON then
+            encontrarBotaoAtaque()
+        end
+    end)
+    
+    btnX.MouseButton1Click:Connect(function()
+        menuAberto=false;f.Visible=false
+        if not btnReabrir then
+            btnReabrir=Instance.new("TextButton");btnReabrir.Size=UDim2.new(0,55,0,55);btnReabrir.Position=UDim2.new(0.02,0,0.85,0);btnReabrir.BackgroundColor3=Color3.fromRGB(200,50,50);btnReabrir.Text="⚔️";btnReabrir.TextColor3=Color3.fromRGB(255,255,255);btnReabrir.TextScaled=true;btnReabrir.Font=Enum.Font.GothamBold;btnReabrir.Parent=sg
+            local cr=Instance.new("UICorner");cr.CornerRadius=UDim.new(0,28);cr.Parent=btnReabrir
+            btnReabrir.MouseButton1Click:Connect(function() menuAberto=true;f.Visible=true;btnReabrir.Visible=false end)
+            btnReabrir.TouchTap:Connect(function() menuAberto=true;f.Visible=true;btnReabrir.Visible=false end)
+        else
+            btnReabrir.Visible=true
+        end
+    end)
+    btnX.TouchTap:Connect(function()
+        menuAberto=false;f.Visible=false
+        if not btnReabrir then
+            btnReabrir=Instance.new("ScreenGui");btnReabrir.Name="Reabrir";btnReabrir.ResetOnSpawn=false;btnReabrir.Parent=plr.PlayerGui
+            local b=Instance.new("TextButton");b.Size=UDim2.new(0,55,0,55);b.Position=UDim2.new(0.02,0,0.85,0);b.BackgroundColor3=Color3.fromRGB(200,50,50);b.Text="⚔️";b.TextColor3=Color3.fromRGB(255,255,255);b.TextScaled=true;b.Font=Enum.Font.GothamBold;b.Parent=btnReabrir
+            local cr=Instance.new("UICorner");cr.CornerRadius=UDim.new(0,28);cr.Parent=b
+            b.MouseButton1Click:Connect(function() menuAberto=true;f.Visible=true;btnReabrir:Destroy() end)
+            b.TouchTap:Connect(function() menuAberto=true;f.Visible=true;btnReabrir:Destroy() end)
+        else
+            btnReabrir.Visible=true
+        end
+    end)
+end
+
 criarMenu()
-print("Hack Lab v2.0 carregado! (<400 linhas)")
+atualizarESP()
+print("📱 Hack Lab v6.0 - Procura e clica no botão de ataque!")
